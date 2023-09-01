@@ -3,7 +3,6 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -13,13 +12,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NetPs.Tcp" Version="1.0.30805" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="mirror_config.ini">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetPs.Tcp" Version="1.0.30901" />
   </ItemGroup>
 
 </Project>
