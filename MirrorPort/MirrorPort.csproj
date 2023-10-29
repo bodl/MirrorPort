@@ -18,7 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NetPs.Tcp" Version="1.0.30901" />
+    <PackageReference Include="NetPs.Tcp" Version="1.0.31029" />
+    <PackageReference Include="NetPs.Udp" Version="1.0.31029" />
   </ItemGroup>
 
 </Project>

@@ -131,6 +131,7 @@
             Controls.Add(lb_status);
             Controls.Add(btn_stop);
             Controls.Add(btn_start);
+            MinimumSize = new Size(816, 489);
             Name = "Form1";
             Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)n_limit).EndInit();

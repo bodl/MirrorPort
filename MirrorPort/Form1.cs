@@ -1,16 +1,19 @@
 namespace MirrorPort
 {
+    using NetPs.Socket;
     using NetPs.Tcp;
+    using NetPs.Udp;
+    using System.Security.Cryptography;
 
     public partial class Form1 : Form
     {
         public const string STA_STOPPED = "stopped";
         public const string STA_RUNNING = "running";
-        private IList<TcpServer> tcpServers = new List<TcpServer>();
+        private IList<SocketCore> Sockets = new List<SocketCore>();
         public Form1()
         {
             InitializeComponent();
-            this.Text = "Tcp 转发器";
+            this.Text = "TcpUdp 转发器";
             this.btn_start.Text = "开始转发";
             this.btn_stop.Text = "结束转发";
             this.btn_start.Enabled = false;
@@ -23,7 +26,7 @@ namespace MirrorPort
 
         }
 
-        private void Tb_print_TextChanged(object? sender, EventArgs e)
+        private void Tb_print_TextChanged(object sender, EventArgs e)
         {
             tb_print.SelectionStart = tb_print.Text.Length;
             tb_print.ScrollToCaret();
@@ -40,22 +43,51 @@ namespace MirrorPort
                     var line = await reader.ReadLineAsync();
                     if (line == null) continue;
                     var blocks = line.Split(' ');
-                    if (blocks.Length == 2)
+                    if (blocks.Length == 3)
                     {
                         try
                         {
-                            var server = new TcpServer((_, client) =>
+                            switch (blocks[0].ToLower())
                             {
-                                client.StartMirror(blocks[1], this.GetLimit());
-                                this.Log($"[{blocks[0]}] 接收到 {client.IP}");
-                            });
-                            server.Disposables.Add(server.LoseConnectedObservable.Subscribe(ip =>
-                            {
-                                this.Log($"结束转发 [{blocks[1]}] --到> [{blocks[0]}]\n");
-                            }));
-                            server.Run(blocks[0]);
-                            tcpServers.Add(server);
-                            this.Log($"开始转发 [{blocks[1]}] --到> [{blocks[0]}]\n");
+                                case "udp":
+                                    var host = new UdpHost(blocks[1]);
+                                    host.Rx.NoBufferReceived += (buffer, length, address) =>
+                                    {
+                                        var c = host.Clone(address);
+                                        c.StartHub(new UdpMirrorHub(c, blocks[2], 10 << 20));
+                                        this.Log($"[{blocks[1]}] 接收到 udp {address}\n");
+                                        return false;
+                                    };
+                                    host.SocketClosed += (o, e) =>
+                                    {
+                                        this.Log($"结束转发 udp [{blocks[2]}] --到> [{blocks[1]}]\n");
+                                    };
+                                    host.StartReceive();
+                                    Sockets.Add(host);
+                                    this.Log($"开始转发 udp [{blocks[2]}] --到> [{blocks[1]}]\n");
+                                    break;
+                                default:
+                                case "tcp":
+                                    var server = new TcpServer((_, client) =>
+                                    {
+                                        try
+                                        {
+                                            client.StartHub(new TcpMirrorHub(client, blocks[2], this.GetLimit()));
+                                            this.Log($"[{blocks[1]}] 接收到 tcp {client.RemoteIPEndPoint}\n");
+                                        }
+                                        catch
+                                        {
+                                        }
+                                    });
+                                    server.SocketClosed += (o, e) =>
+                                    {
+                                        this.Log($"结束转发 tcp [{blocks[2]}] --到> [{blocks[1]}]\n");
+                                    };
+                                    server.Run(blocks[1]);
+                                    Sockets.Add(server);
+                                    this.Log($"开始转发 tcp [{blocks[2]}] --到> [{blocks[1]}]\n");
+                                    break;
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -71,11 +103,11 @@ namespace MirrorPort
 
         private void btn_stop_Click(object sender, EventArgs e)
         {
-            foreach (var server in tcpServers)
+            foreach (var server in Sockets)
             {
                 server.Dispose();
             }
-            tcpServers.Clear();
+            Sockets.Clear();
             this.btn_start.Enabled = true;
             this.btn_stop.Enabled = false;
             this.lb_status.Text = STA_STOPPED;
